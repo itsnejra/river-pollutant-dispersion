@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+.ruff_cache/
+.git/
+*.bak*
+.gitignore
+.pre-commit-config.yaml
+AGENTS.md
+README.md
+images/

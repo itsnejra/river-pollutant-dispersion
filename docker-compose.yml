@@ -1,0 +1,6 @@
+services:
+  simulation:
+    build: .
+    container_name: river-pollution-simulation
+    volumes:
+      - ./images:/app/images
