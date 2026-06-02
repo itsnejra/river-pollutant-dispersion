@@ -95,7 +95,7 @@ class ADESolver:
         Raises:
             ValueError: Ako je difuzijski broj van stabilnog opsega.
         """
-        if self._r > 0.5:
+        if self._r > 0.5:  # diffusion stability
             raise ValueError(
                 f"Difuzijska nestabilnost: d = {self._r:.4f} > 0.5. "
                 f"Smanjite dt={self._dt} ili povećajte dx={self._dx:.1f}."
@@ -212,3 +212,14 @@ class ADESolver:
             t_peak=t_peak,
             arrived=arrived,
         )
+
+    def check_courant(self, u_max: float) -> None:
+        """Warn if the Courant number exceeds 1 for the given peak velocity."""
+        co = u_max * self._dt / self._dx
+        if co > 1.0:
+            import warnings
+            warnings.warn(
+                f"Courant number Co={co:.3f} > 1.0 at u_max={u_max:.2f} m/s. "
+                "Consider reducing dt for numerical accuracy.",
+                stacklevel=2,
+            )
