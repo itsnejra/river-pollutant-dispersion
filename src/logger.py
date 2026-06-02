@@ -41,3 +41,9 @@ def get_logger(name: str) -> logging.Logger:
     """
     _setup_root_logger()
     return logging.getLogger(name)
+
+
+def get_section_logger(section: str) -> logging.Logger:
+    """Return a sub-logger namespaced under a pipeline section."""
+    _setup_root_logger()
+    return logging.getLogger(f"pipeline.{section}")
