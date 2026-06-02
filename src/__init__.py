@@ -1,3 +1,15 @@
-"""src — Simulacija širenja zagađivača u riječnom slivu."""
+"""river-pollutant-dispersion — public API surface."""
 
-__version__ = "0.1.0"
+__all__ = [
+    "config",
+    "simulator",
+    "stochastic_flow",
+    "advection_diffusion",
+    "replication_manager",
+    "metamodel",
+    "sensitivity",
+    "optimizer",
+    "plotter",
+    "statistics",
+    "logger",
+]
