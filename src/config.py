@@ -130,6 +130,12 @@ class SimulationConfig:
     detection_threshold: float = 1e-3
     n_metamodel_samples: int = 400
 
+    def __post_init__(self) -> None:
+        if self.dt <= 0:
+            raise ValueError(f"dt must be positive, got {self.dt}")
+        if self.t_total <= self.dt:
+            raise ValueError("t_total must exceed dt")
+
     @property
     def n_steps(self) -> int:
         """Ukupan broj vremenskih koraka."""
