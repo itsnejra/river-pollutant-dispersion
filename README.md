@@ -3,7 +3,7 @@
 A Monte Carlo simulation framework for modelling **1D advection–diffusion of chemical pollutants** in a river watershed. The tool quantifies pollutant arrival time and peak concentration at a downstream water-intake point under three climate scenarios (dry, normal, rainy) using stochastic river-flow modelling, surrogate metamodels, sensitivity analysis, and differential-evolution optimisation.
 
 > **Academic context** — Topic 12: *Pollutant Dispersion in a River Watershed*  
-> Course: Risk and Reliability of Systems (RMS)  
+> Course: Računarsko modeliranje i simulacije  
 > Authors: Nejra Smajlović (136)
 
 ---
