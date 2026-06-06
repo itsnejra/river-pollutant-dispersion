@@ -17,10 +17,9 @@ env/
 # Ruff / linting
 .ruff_cache/
 
-# Output artefacts — keep the dir, ignore generated files
+# Output artefacts — commit PNGs for README, ignore PDF/SVG
 images/*.pdf
 images/*.svg
-images/*.png
 
 # IDE
 .vscode/

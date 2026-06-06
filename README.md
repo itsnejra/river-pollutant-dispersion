@@ -1,38 +1,185 @@
 # River Pollutant Dispersion Simulator
 
-A Monte Carlo simulation framework for modelling **1D advection–diffusion of chemical pollutants** in a river watershed. The tool quantifies pollutant arrival time and peak concentration at a downstream water-intake point under three climate scenarios (dry, normal, rainy) using stochastic river-flow modelling, surrogate metamodels, sensitivity analysis, and differential-evolution optimisation.
+<p align="center">
+  <img src="images/scenario_comparison.png" width="800" alt="Scenario comparison"/>
+</p>
+
+<p align="center">
+  <b>Monte Carlo simulation of chemical pollutant transport in a river watershed</b><br/>
+  1D advection–diffusion · Ornstein–Uhlenbeck stochastic flow · Gaussian Process metamodel · Differential evolution optimisation
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11%2B-blue?logo=python" />
+  <img src="https://img.shields.io/badge/uv-package%20manager-purple" />
+  <img src="https://img.shields.io/badge/Docker-ready-2496ED?logo=docker" />
+  <img src="https://img.shields.io/badge/license-MIT-green" />
+</p>
+
+---
 
 > **Academic context** — Topic 12: *Pollutant Dispersion in a River Watershed*  
 > Course: Computer Modelling and Simulation  
-> Authors: Nejra Smajlović (136)
+> Author: Nejra Smajlović (136)
 
 ---
 
 ## Table of Contents
 
-- [Features](#features)
+- [Overview](#overview)
+- [Simulation Results](#simulation-results)
+  - [Deterministic Baseline](#1-deterministic-baseline)
+  - [Stochastic Flow](#2-stochastic-flow--warmup-validation)
+  - [Monte Carlo](#3-monte-carlo-analysis)
+  - [Metamodel](#4-surrogate-metamodel)
+  - [Sensitivity Analysis](#5-sensitivity-analysis)
+  - [What-If Analysis](#6-what-if-analysis)
 - [Architecture](#architecture)
 - [Quick Start](#quick-start)
 - [Docker](#docker)
-- [Simulation Pipeline](#simulation-pipeline)
 - [Configuration](#configuration)
-- [Output](#output)
 - [Dependencies](#dependencies)
 
 ---
 
-## Features
+## Overview
 
-| Capability | Details |
-|---|---|
-| **Stochastic flow** | Ornstein–Uhlenbeck process (exact discretisation, not Euler–Maruyama) |
-| **PDE solver** | Upwind-FTCS finite-difference scheme for the 1D ADE |
-| **Monte Carlo** | Adaptive N-determination via sequential confidence-interval narrowing |
-| **Metamodels** | Latin-Hypercube sampling + GP / Random Forest / Gradient Boosting surrogates |
-| **Sensitivity** | One-At-a-Time (OAT) parameter sweep |
-| **Optimisation** | Differential evolution for worst-case arrival time and peak concentration |
-| **What-if** | Exact grid sweep over pairs of parameters |
-| **Visualisation** | Space-time heatmaps, MC distributions, metamodel parity plots, contour maps |
+A full simulation pipeline that models how a chemical pollutant spill travels downstream along a 50 km river and reaches a municipal water intake at 40 km. The framework answers three key questions:
+
+1. **When** does the pollutant arrive at the water intake?
+2. **How concentrated** is it at peak?
+3. **Which parameters** drive the risk — and what is the absolute worst case?
+
+The pipeline runs eight sequential steps: deterministic baseline → Monte Carlo → statistical analysis → surrogate metamodel → sensitivity analysis → differential-evolution optimisation → what-if grid sweeps.
+
+### Key Results
+
+| Scenario | Arrival time (mean) | Peak concentration (mean) | Arrival probability |
+|----------|-------------------|--------------------------|-------------------|
+| Dry season | **14.46 ± 0.64 h** | 1 452 mg/m³ | 100 % |
+| Normal flow | **8.56 ± 0.48 h** | 1 418 mg/m³ | 100 % |
+| Heavy rain | **5.94 ± 0.50 h** | 1 449 mg/m³ | 100 % |
+| Worst case (optimised) | **3.38 h** | **5 878 mg/m³** | — |
+
+---
+
+## Simulation Results
+
+### 1. Deterministic Baseline
+
+Three climate scenarios solved with constant mean velocity — dry season, normal flow, and heavy rain / flood.
+
+<p align="center">
+  <img src="images/scenario_comparison.png" width="780" alt="Deterministic scenario comparison"/>
+</p>
+
+**Space-time concentration heatmaps** — the plume travels faster and spreads wider under rainy conditions:
+
+| Dry season | Normal flow | Heavy rain |
+|:---:|:---:|:---:|
+| ![](images/spacetime_dry.png) | ![](images/spacetime_normal.png) | ![](images/spacetime_rainy.png) |
+
+**Spatial concentration snapshots** at selected time steps:
+
+| Dry season | Normal flow | Heavy rain |
+|:---:|:---:|:---:|
+| ![](images/snapshots_dry.png) | ![](images/snapshots_normal.png) | ![](images/snapshots_rainy.png) |
+
+---
+
+### 2. Stochastic Flow & Warmup Validation
+
+River velocity is modelled as an **Ornstein–Uhlenbeck process** (`dU = θ(μ−U)dt + σdW`). Welch's periodogram confirms the warmup period (3τ = 3 h) is sufficient to reach stationarity before the simulation clock starts.
+
+<p align="center">
+  <img src="images/warmup_welch_normalni.png" width="720" alt="Welch periodogram warmup validation"/>
+</p>
+
+<p align="center">
+  <img src="images/velocity_series.png" width="720" alt="OU stochastic velocity time series"/>
+</p>
+
+Sequential confidence-interval narrowing determines the minimum number of Monte Carlo replications required (target relative CI width ≤ 5 %):
+
+<p align="center">
+  <img src="images/replication_convergence.png" width="600" alt="Replication convergence"/>
+</p>
+
+---
+
+### 3. Monte Carlo Analysis
+
+N stochastic replications per scenario, each with an independently seeded OU velocity process. The 95 % confidence bands show the envelope of possible concentration histories at the water intake.
+
+<p align="center">
+  <img src="images/mc_confidence_bands.png" width="780" alt="Monte Carlo confidence bands"/>
+</p>
+
+Histograms of arrival time and peak concentration across all replications, with 95 % CI marked:
+
+<p align="center">
+  <img src="images/mc_distributions.png" width="780" alt="Monte Carlo distributions"/>
+</p>
+
+| Scenario | t_arrival 95 % CI | C_peak std | Shapiro–Wilk (normal?) |
+|----------|------------------|-----------|----------------------|
+| Dry | [14.00, 14.92] h | ±8.5 mg/m³ | ✅ p = 0.553 |
+| Normal | [8.22, 8.91] h | ±10.8 mg/m³ | ✅ p = 0.775 |
+| Rainy | [5.59, 6.30] h | ±26.7 mg/m³ | ❌ p = 0.024 |
+
+---
+
+### 4. Surrogate Metamodel
+
+A Latin Hypercube Sample (400 points over the 4D parameter space) trains four surrogate models. **Gaussian Process** wins by cross-validated R²:
+
+| Model | R² CV (t_arrival) | R² CV (C_peak) |
+|-------|-----------------|---------------|
+| **Gaussian Process** | **0.900** | **0.996** |
+| Random Forest | 0.891 | 0.974 |
+| Gradient Boosting | 0.884 | 0.992 |
+| HistGradient Boosting | 0.884 | 0.990 |
+
+Parity plots — predicted vs. exact simulation values on a held-out test set:
+
+<p align="center">
+  <img src="images/metamodel_validation.png" width="780" alt="Metamodel validation parity plots"/>
+</p>
+
+---
+
+### 5. Sensitivity Analysis
+
+One-At-a-Time (OAT) sweep ±30 % around nominal values for each of the four input parameters. Normalised sensitivity indices:
+
+<p align="center">
+  <img src="images/sensitivity_analysis.png" width="720" alt="OAT sensitivity analysis"/>
+</p>
+
+| Parameter | S(t_arrival) | S(C_peak) | Dominant effect |
+|-----------|-------------|----------|----------------|
+| Mean velocity u [m/s] | **0.533** | 0.165 | Controls arrival time |
+| Dispersion D [m²/s] | 0.089 | 0.129 | Moderate effect on both |
+| Released mass M₀ [kg] | 0.031 | **1.003** | Linearly scales peak concentration |
+| Velocity volatility σ [m/s] | 0.018 | 0.011 | Minimal impact |
+
+---
+
+### 6. What-If Analysis
+
+Exact 30×30 grid sweeps over pairs of parameters, computing both arrival time and peak concentration at every point.
+
+**Flow velocity vs. dispersion coefficient:**
+
+<p align="center">
+  <img src="images/whatif_u_base_vs_D.png" width="780" alt="What-if: u_base vs D"/>
+</p>
+
+**Released mass vs. flow velocity:**
+
+<p align="center">
+  <img src="images/whatif_mass_vs_u_base.png" width="780" alt="What-if: mass vs u_base"/>
+</p>
 
 ---
 
@@ -43,7 +190,8 @@ river-pollutant-dispersion/
 ├── main.py                    # 8-step pipeline orchestrator
 ├── pyproject.toml             # Project metadata & dependencies (uv)
 ├── Dockerfile                 # Container image
-├── docker-compose.yml         # Compose for one-command runs
+├── docker-compose.yml         # One-command containerised run
+├── images/                    # Generated figures (PNG / PDF / SVG)
 └── src/
     ├── config.py              # All physical constants & climate scenarios
     ├── logger.py              # Structured logging
@@ -71,7 +219,7 @@ cd river-pollutant-dispersion
 # Install dependencies
 uv sync
 
-# Run the full pipeline (~5-15 min depending on hardware)
+# Run the full pipeline (~2 min on a modern laptop)
 uv run python main.py
 ```
 
@@ -82,7 +230,7 @@ Output figures are written to `images/` as `.pdf`, `.svg`, and `.png`.
 ## Docker
 
 ```bash
-# Build and run
+# Build and run (figures written to ./images on the host)
 docker compose up --build
 
 # Or with plain Docker
@@ -92,77 +240,38 @@ docker run --rm -v "$(pwd)/images:/app/images" river-pollutant
 
 ---
 
-## Simulation Pipeline
-
-The `main.py` orchestrator runs eight sequential steps:
-
-| Step | Name | Description |
-|------|------|-------------|
-| 1 | **Deterministic baseline** | ADE solved with constant mean velocity for each climate scenario |
-| 2 | **Warmup validation + N replications** | Welch's method validates OU warmup; sequential CI determines required N |
-| 3 | **Monte Carlo** | N stochastic replications × 3 climate scenarios |
-| 4 | **Statistical analysis** | 95 % CI, Shapiro–Wilk normality test, summary tables |
-| 5 | **Metamodel training** | LHS design + GP, RF, GB trained; best model chosen by CV R² |
-| 6 | **OAT sensitivity** | 51-point sweep ±30 % around nominal for each parameter |
-| 7 | **Optimisation** | Differential evolution finds worst-case t_arrival and C_peak |
-| 8 | **What-if analysis** | Exact 30×30 grid sweeps over (u_base, D) and (mass, u_base) |
-
----
-
 ## Configuration
 
 All physical and numerical parameters are centralised in [`src/config.py`](src/config.py).
 
 ### Climate Scenarios
 
-| Scenario | u_base (m/s) | σ_u (m/s) | D (m²/s) |
-|----------|-------------|-----------|----------|
-| Dry | 0.30 | 0.05 | 20 |
-| Normal | 0.50 | 0.10 | 50 |
-| Rainy | 0.75 | 0.20 | 80 |
+| Scenario | u_base (m/s) | σ_u (m/s) | D (m²/s) | Description |
+|----------|-------------|-----------|----------|-------------|
+| `dry` | 0.30 | 0.05 | 20 | Low flow, high retention |
+| `normal` | 0.50 | 0.10 | 50 | Average hydrological regime |
+| `rainy` | 0.75 | 0.20 | 80 | Elevated post-rainfall flow |
 
 ### Key Physical Parameters
 
 | Parameter | Value | Description |
 |-----------|-------|-------------|
 | River length | 50 km | 1D domain extent |
-| Spatial nodes | 101 | Grid resolution |
+| Spatial nodes | 101 | Grid resolution (dx = 500 m) |
 | Water intake | 40 km | Point of interest |
-| Pollutant mass | 1 000 kg | Instantaneous release |
+| Pollutant mass | 1 000 kg | Instantaneous Gaussian release |
 | Release position | 5 km | Upstream spill location |
-| Time step dt | 150 s | Satisfies CFL & diffusion stability |
-| Simulation time | 72 h | Total integration window |
+| Time step dt | 150 s | CFL and diffusion stability satisfied |
+| Simulation window | 72 h | Total integration time |
 
 ### Numerical Stability
 
-The finite-difference scheme requires:
-
 ```
-Courant number:   Co = u·dt/dx ≤ 1.0
-Diffusion number: d  = D·dt/dx² ≤ 0.5
+Courant number:   Co = u·dt/dx ≤ 1.0   ✅
+Diffusion number: d  = D·dt/dx² ≤ 0.5  ✅
 ```
 
-Both conditions are checked at initialisation and raise `ValueError` on violation.
-
----
-
-## Output
-
-After a successful run the `images/` directory contains (among others):
-
-| Figure | Content |
-|--------|---------|
-| `spacetime_*.pdf` | Space-time concentration heatmap per scenario |
-| `snapshots_*.pdf` | Spatial profiles at selected time steps |
-| `scenario_comparison.pdf` | Overlay of all three deterministic baselines |
-| `velocity_series.pdf` | OU stochastic velocity time series |
-| `replication_convergence.pdf` | CI width vs. number of replications |
-| `warmup_welch.pdf` | Welch's periodogram for warmup validation |
-| `mc_distributions.pdf` | Histograms of t_arrival and C_peak per scenario |
-| `mc_confidence_bands.pdf` | MC 95 % confidence bands on concentration curves |
-| `metamodel_validation.pdf` | Parity plots for all surrogates and targets |
-| `sensitivity_*.pdf` | OAT sensitivity tornado charts |
-| `whatif_*.pdf` | Contour maps of t_arrival and C_peak |
+Both are checked at initialisation and raise `ValueError` on violation.
 
 ---
 
@@ -171,12 +280,11 @@ After a successful run the `images/` directory contains (among others):
 | Package | Purpose |
 |---------|---------|
 | `numpy` | Vectorised numerics |
-| `scipy` | `lfilter` for OU discretisation, `differential_evolution`, stats |
-| `scikit-learn` | GP, Random Forest, Gradient Boosting metamodels; LHS sampling |
+| `scipy` | `lfilter` (OU exact discretisation), `differential_evolution`, stats |
+| `scikit-learn` | GP / RF / GB metamodels, LHS sampling |
 | `matplotlib` | All figures |
 | `seaborn` | Distribution plots |
 | `pandas` | Summary tables |
-| `simpy` | (available for discrete-event extensions) |
 
 ---
 
