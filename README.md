@@ -123,9 +123,9 @@ Histograms of arrival time and peak concentration across all replications, with 
 
 | Scenario | t_arrival 95 % CI | C_peak std | Shapiro–Wilk (normal?) |
 |----------|------------------|-----------|----------------------|
-| Dry | [14.00, 14.92] h | ±8.5 mg/m³ | ✅ p = 0.553 |
-| Normal | [8.22, 8.91] h | ±10.8 mg/m³ | ✅ p = 0.775 |
-| Rainy | [5.59, 6.30] h | ±26.7 mg/m³ | ❌ p = 0.024 |
+| Dry | [14.00, 14.92] h | ±8.5 mg/m³ | yes, p = 0.553 |
+| Normal | [8.22, 8.91] h | ±10.8 mg/m³ | yes, p = 0.775 |
+| Rainy | [5.59, 6.30] h | ±26.7 mg/m³ | no, p = 0.024 |
 
 ---
 
@@ -267,8 +267,8 @@ All physical and numerical parameters are centralised in [`src/config.py`](src/c
 ### Numerical Stability
 
 ```
-Courant number:   Co = u·dt/dx ≤ 1.0   ✅
-Diffusion number: d  = D·dt/dx² ≤ 0.5  ✅
+Courant number:   Co = u·dt/dx <= 1.0
+Diffusion number: d  = D·dt/dx² <= 0.5
 ```
 
 Both are checked at initialisation and raise `ValueError` on violation.
